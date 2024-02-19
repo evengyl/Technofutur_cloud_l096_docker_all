@@ -1,0 +1,106 @@
+version: '3.8'
+name: 'cloud_l096'
+#docker compose -f "docker-compose.yaml" up -d --build 
+
+services:
+
+    mysql_db:
+        container_name: mysql_database
+        build: "./sql"
+        environment:
+            MYSQL_ROOT_PASSWORD: $MYSQL_ROOT_PASSWORD
+            MYSQL_PASSWORD: $MYSQL_PASSWORD
+            MYSQL_USER: $MYSQL_USER
+            MYSQL_DATABASE: $MYSQL_DATABASE
+        ports:
+            - "3307:3306"
+        networks:
+            - "backend"
+        volumes:
+            - "./sql/backup:/var/lib/mysql"
+        deploy:
+            resources:
+                limits:
+                    cpus: '1.00'
+                    memory: 512m
+                reservations:
+                    cpus: '0.5'
+                    memory: 256m
+        
+        
+    api_wsql:
+        container_name: api_rest_without_sql
+        build: "./api_without_sql"
+        #image: "evengylbstorm/demo_techno_api_without_sql:1.0"
+        #build: "https://github.com/evengyl/technofutur_java_cyber_2_docker/tree/main/front.git"
+        ports:
+            - "3001:$API_W_PORT"
+            #Attention les ports sont un listing, donc avec le '-'
+        environment:
+            PORT: "$API_W_PORT"
+            #Attention les environements sont un mapping, donc sans le '-'
+
+
+    api_sql:
+        container_name: api_rest_sql
+        build: "./api_with_sql"
+        ports:
+            - "3002:$API_PORT"
+        environment:
+            API_MYSQL_HOST: $API_MYSQL_HOST
+            API_MYSQL_USER: $API_MYSQL_USER
+            API_MYSQL_PASSWORD: $API_MYSQL_PASSWORD
+            API_MYSQL_DATABASE: $API_MYSQL_DATABASE
+            API_MYSQL_PORT: $API_MYSQL_PORT
+            PORT: $API_PORT
+        networks: 
+            - "backend"
+        volumes:
+            - "upload_frontend:/app/"
+
+
+
+    web:
+        container_name: web_build_angular
+        build: "./WebAngular"
+        ports:
+            - "8080:80"
+            - "4430:443"
+
+
+    adminer:
+        image: adminer
+        restart: always
+        environment:
+            ADM_INSTALL_MSSQL: true
+            PHP_FPM_INSTALL_MSSQL: true
+            WORKSPACE_INSTALL_MSSQL: true
+        ports:
+            - 8080:8080
+
+    dbssms:
+        image: "mcr.microsoft.com/mssql/server:2019-latest"
+        container_name: mssql
+        user: root
+        environment:
+            ACCEPT_EULA: "Y"
+            SA_PASSWORD: Test1234_
+        ports:
+            - 1434:1433
+        volumes:
+            - ./mssql/data:/var/opt/mssql/data
+        healthcheck:
+            test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P test1234 -Q "SELECT 1" || exit 1
+            interval: 30s
+            timeout: 30s
+            retries: 3
+    
+
+
+networks:
+    backend:
+        #internal: true
+
+
+volumes:
+    upload_frontend:
